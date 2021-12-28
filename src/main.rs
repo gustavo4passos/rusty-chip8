@@ -7,12 +7,16 @@ mod state;
 mod utils;
 mod exec;
 mod display;
+mod logger;
+mod window;
+mod debug;
 
 use std::env;
 use crate::state::InternalState;
-
+// use crate::window::Window;
 
 fn main() {
+    // Window::new(300, 300).run();
     let cwd_p = env::current_dir();
     let mut cwd: String = String::from("");
     
@@ -23,7 +27,7 @@ fn main() {
     };
     println!("Current dir is: {}", cwd);
     
-    let data = utils::read_file_to_u8("../IBM Logo.ch8")
+    let data = utils::read_file_to_u8("C:/dev/chip8-roms/pong.ch8")
         .unwrap();
     let mut main_state: InternalState = InternalState::new();
     main_state.load_rom_to_memory(&data);

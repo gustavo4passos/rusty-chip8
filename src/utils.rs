@@ -1,8 +1,9 @@
 use std::fs;
 use std::io;
+use crate::log_debug;
 
 pub fn read_file_to_u8(file_path: &str) -> io::Result<Vec<u8>> {
-    println!("Reading file: {}", file_path);
+    log_debug!("Reading file: {}", file_path);
     fs::read(file_path)
 }
 
@@ -22,6 +23,9 @@ pub fn concat_nib_to_u8(n1: u8, n0: u8) -> u8 {
     (n0 & 0xF)
 }
 
+pub fn split_u16_to_u8(value: u16) -> (u8, u8) {
+    ((value >> 8) as u8, value as u8)
+}
 /// Get bit in pos bit_pos. It should be zero-indexed.
 pub fn get_nth_bit_u16(data: u16, bit_pos: u8) -> u8 {
     ((data & ((1 << bit_pos) as u16)) >> bit_pos) as u8
