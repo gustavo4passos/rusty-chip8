@@ -12,7 +12,7 @@ impl InternalState {
         if rom_bytes.len() > state::MEMSIZE - state::PROGRAM_START {
             panic!("Rom is too large.");
         }
-        
+       
         // Copies rom to program area in memory
         self.main_memory[state::PROGRAM_START..(rom_bytes.len() + state::PROGRAM_START)]
             .clone_from_slice(rom_bytes);

@@ -1,4 +1,5 @@
 use std::time::{ Duration, Instant };
+use crate::input::{ InputBackend, KeyboardState };
 use crate::utils;
 
 pub const DISPLAYW: u32 = 64;
@@ -8,7 +9,8 @@ pub const PROGRAM_START: usize = 0x200;
 pub const STACK_START: usize = PROGRAM_START;
 pub const STACK_SIZE: u32 = 32; // Stack can store 16 u16
 pub const CYCLE_DURATION_NS: u32 = 1000;
-pub enum Keyboard {
+
+pub enum KeyboardKey {
     Zero = 0,
     One,
     Two,
@@ -62,7 +64,7 @@ pub struct InternalState {
     pub framebuffer: [u8; (DISPLAYW * DISPLAYH) as usize],
     pub main_memory: [u8; MEMSIZE as usize],
     pub registers: [u16; Register::Total as usize],
-    pub keyboard_state: [bool; Keyboard::Total as usize],
+    pub keyboard_state: KeyboardState,
     pub previous_tick: Instant,
     pub previous_vsync: Instant,
     pub timer_accumulator: Duration,
@@ -92,7 +94,7 @@ impl InternalState {
             framebuffer: [0; (DISPLAYW * DISPLAYH) as usize],
             main_memory: [0; MEMSIZE],
             registers: [0; Register::Total as usize],
-            keyboard_state: [false; Keyboard::Total as usize],
+            keyboard_state: KeyboardState::new(),
 
             previous_tick: Instant::now(),
             previous_vsync: Instant::now(),
@@ -137,7 +139,7 @@ impl InternalState {
         let stack_top = self.get_register(Register::SP) as usize;
         self::utils::concat_u8_to_u16(self.main_memory[stack_top - 1], self.main_memory[stack_top])
     }
-    
+
     pub fn pop_stack(&mut self) -> u16 {
         let top_stack = self.peek_stack();
         self.advance_sp(-1);

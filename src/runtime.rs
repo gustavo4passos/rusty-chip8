@@ -1,9 +1,11 @@
-use crate::{state::InternalState, exec::InstructionType};
+use crate::state::InternalState;
 use crate::display;
 use crate::state::Register;
-use crate::state::{ DISPLAYH, DISPLAYW };
 use crate::log_debug;
+use crate::window::Window;
+use crate::input::InputBackend;
 use std::time::{Duration, Instant};
+
 
 impl InternalState {
     pub fn run(&mut self) {
@@ -12,8 +14,14 @@ impl InternalState {
     }
 
     pub fn run_main_loop(&mut self) {
+        let mut w = Window::new(800, 600);
+        w.init();
+
         loop {
-            
+            if w.should_close() { break };
+            w.get_keyboard_state(&mut self.keyboard_state);
+            w.update();
+
             while self.time_since_last_op.as_micros() > 1400 {
                 let next_inst = self.fetch_next();
                 let next_inst_decoded = InternalState::decode_instr(next_inst);         
@@ -31,12 +39,10 @@ impl InternalState {
             if t_since_last_vsync.as_millis() > 16 {
                 display::draw_console(&self.framebuffer);
                 self.previous_vsync = Instant::now();
-                
             }
 
             self.handle_timer(&elapsed);
-
-            log_debug!("PC: {:#x}", self.registers[Register::PC as usize] - 0x200);
+            // log_debug!("PC: {:#x}", self.registers[Register::PC as usize] - 0x200);
         }
     }    
 }

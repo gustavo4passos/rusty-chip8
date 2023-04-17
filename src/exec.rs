@@ -1,6 +1,6 @@
 use std::time::{ Duration, Instant };
 
-use crate::state::{ DISPLAYH, DISPLAYW, PROGRAM_START, STACK_START };
+use crate::state::{ DISPLAYH, DISPLAYW, PROGRAM_START, STACK_START, KeyboardKey };
 use crate::state::InternalState;
 use crate::state::Register;
 use crate::state::Color;
@@ -131,7 +131,7 @@ impl InternalState {
     }
 
     pub fn jmp(&mut self, address: u16) {
-        log_debug!("Jumping to {:#x}", address);
+        // log_debug!("Jumping to {:#x}", address);
         self.registers[Register::PC as usize] = address;
     }
 
@@ -141,12 +141,12 @@ impl InternalState {
     }
 
     pub fn ldv(&mut self, vx: u8, value: u8) {
-        log_debug!("Loading to register {}", InternalState::get_vx_i(vx));
+        // log_debug!("Loading to register {}", InternalState::get_vx_i(vx));
         self.registers[InternalState::get_vx_i(vx)] = value as u16;
     }
 
     pub fn addv(&mut self, vx: u8, value: u8) {
-        let sum: u8 = self.registers[InternalState::get_vx_i(vx)] as u8 + value;
+        let sum: u16 = self.registers[InternalState::get_vx_i(vx)] + value as u16;
         self.registers[InternalState::get_vx_i(vx)] = sum as u16;
     }
 
@@ -155,7 +155,7 @@ impl InternalState {
     }
 
     pub fn drw(&mut self, vx: u8, vy: u8, bytes: u8) {
-        log_debug!("Drawing from {} to {} for {} bytes", vx, vy, bytes);
+        // log_debug!("Drawing from {} to {} for {} bytes", vx, vy, bytes);
 
         let x_coord = self.registers[InternalState::get_vx_i(vx)] % (DISPLAYW as u16);
         let y_coord = self.registers[InternalState::get_vx_i(vy)] % (DISPLAYH as u16);
@@ -166,7 +166,7 @@ impl InternalState {
         for i in 0..bytes {
             let i_value = self.registers[Register::I as usize] + i as u16;
             let data = self.main_memory[i_value as usize];
-            log_debug!("vx {} vy {} bytes {} I {:#x} data {:#x}", x_coord, y_coord, bytes, i_value, data);
+            // log_debug!("vx {} vy {} bytes {} I {:#x} data {:#x}", x_coord, y_coord, bytes, i_value, data);
 
             // If pixel falls outside screen, stop.
             if y_coord + i as u16 >= DISPLAYH as u16 { break };
@@ -175,7 +175,6 @@ impl InternalState {
                 // If pixel falls outside screen, stop this line
                 if x_coord + j >= DISPLAYW as u16 { break }; 
 
-                log_debug!("Bit {}: {}", j, utils::get_nth_bit_u16(data as u16, j as u8));
                 let fb_index = InternalState::get_fb_i_from_coord_in_fb(x_coord + j, y_coord + i as u16);
                 let color = match utils::get_nth_bit_u16(data as u16, (7 - j) as u8) {
                     0x0 => Color::Black as u8,
@@ -199,7 +198,7 @@ impl InternalState {
 
     pub fn ret(&mut self) {
         let ret_addr = self.pop_stack();
-        log_debug!("Returning to: {:#x}", ret_addr);
+        // log_debug!("Returning to: {:#x}", ret_addr);
         self.set_register(Register::PC, ret_addr);
     }
 
@@ -321,24 +320,32 @@ impl InternalState {
     }
 
     pub fn sub(&mut self, vx: u8, vy: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)] as u8;
-        let vy_value = self.registers[InternalState::get_vx_i(vy)] as u8;
+        // TODO: Check the behavior of casting an i8 to u8 when the value is negative
+        let vx_value = self.registers[InternalState::get_vx_i(vx)] as i8;
+        let vy_value = self.registers[InternalState::get_vx_i(vy)] as i8;
 
-        let result = vx_value - vy_value;
+        let result = (vx_value - vy_value) as u8;
         self.set_register(Register::VF, if vx_value > vy_value { 1 } else { 0 });
         self.registers[InternalState::get_vx_i(vx)] = result as u16;
     }
 
-    // Sound not yet implemented
+    // TODO: Sound not yet implemented
     pub fn ldst(&mut self, vx: u8) {
 
     }
  
     // TODO: Input not yet implemented
     pub fn sknp(&mut self, vx: u8) {
-        self.advance_pc();
+        let key = self.registers[InternalState::get_vx_i(vx)];
+        if !self.keyboard_state.get_key_state_u8(key as u8) {
+            self.advance_pc();
+        }
     }
     
     pub fn skp(&mut self, vx: u8) {
+        let key = self.registers[InternalState::get_vx_i(vx)];
+        if self.keyboard_state.get_key_state_u8(key as u8) {
+            self.advance_pc();
+        }
     }
 }

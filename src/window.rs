@@ -1,5 +1,10 @@
 extern crate glfw;
-use glfw::{Action, Context, Key};
+extern crate gl;
+use glfw::{Action, Context, Key, WindowEvent };
+use crate::input::{InputBackend, KeyboardState};
+use crate::state::KeyboardKey;
+use std::sync::mpsc::{ Receiver };
+use gl::types::*;
 
 pub struct Window {
     width: u32,
@@ -7,6 +12,7 @@ pub struct Window {
 
     glfw: glfw::Glfw,
     window: glfw::Window,
+    events: Receiver<(f64, WindowEvent)>,
 }
 
 impl Window {
@@ -25,14 +31,51 @@ impl Window {
             height,
             glfw,
             window,
+            events,
         }
     }
 
-    pub fn init() {}
+    pub fn init(&mut self) {
+        gl::load_with(|s| self.glfw.get_proc_address_raw(s));
+        unsafe { gl::ClearColor(1.0, 0.0, 0.0, 1.0) };
+    }
 
     pub fn run(&mut self) {
-        while !self.window.should_close() {
-            self.glfw.poll_events();
+        
+    }
+
+    pub fn update(&mut self) {
+        unsafe { gl::Clear(gl::COLOR_BUFFER_BIT) };
+        self.window.swap_buffers()
+    }
+
+    pub fn should_close(&mut self) -> bool {
+        self.window.should_close()
+    }
+}
+
+impl InputBackend for Window {
+    fn get_keyboard_state(&mut self, keyboard_state: &mut KeyboardState) {
+        self.glfw.poll_events();
+        for (_, event) in glfw::flush_messages(&self.events) {
+            match event {
+                glfw::WindowEvent::Key(Key::Up, _, Action::Press, _) => {
+                    keyboard_state.set_key_state(KeyboardKey::One, true)
+                },
+                glfw::WindowEvent::Key(Key::Up, _, Action::Release, _) => {
+                    keyboard_state.set_key_state(KeyboardKey::One, false)
+                },
+                glfw::WindowEvent::Key(Key::Down, _, Action::Press, _) => {
+                    keyboard_state.set_key_state(KeyboardKey::Four, true)
+                },
+                glfw::WindowEvent::Key(Key::Down, _, Action::Release, _) => {
+                    keyboard_state.set_key_state(KeyboardKey::Four, false)
+                },
+                glfw::WindowEvent::Key(Key::Escape, _, Action::Release, _) => {
+                    self.window.set_should_close(true)
+                },
+                _ => { }
+            }
         }
     }
 }

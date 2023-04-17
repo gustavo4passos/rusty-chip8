@@ -10,6 +10,7 @@ mod display;
 mod logger;
 mod window;
 mod debug;
+mod input;
 
 use std::env;
 use crate::state::InternalState;
@@ -24,10 +25,13 @@ fn main() {
         if let Some(s) = result.to_str() {
             cwd = String::from(s);
         }
+    } else {
+        println!("Unable to retrieve current working directory");
     };
+    
     println!("Current dir is: {}", cwd);
     
-    let data = utils::read_file_to_u8("C:/dev/chip8-roms/pong.ch8")
+    let data = utils::read_file_to_u8("C:/dev/chip8-roms/pong_1_player.ch8")
         .unwrap();
     let mut main_state: InternalState = InternalState::new();
     main_state.load_rom_to_memory(&data);
