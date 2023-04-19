@@ -3,7 +3,6 @@ use crate::state::Register;
 use crate::state::{STACK_SIZE, STACK_START};
 use crate::utils;
 use crate::log_debug;
-use std::io::Write;
 
 
 impl InternalState {

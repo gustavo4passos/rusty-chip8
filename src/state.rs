@@ -1,5 +1,5 @@
 use std::time::{ Duration, Instant };
-use crate::input::{ InputBackend, KeyboardState };
+use crate::input::{ KeyboardState };
 use crate::utils;
 
 pub const DISPLAYW: u32 = 64;
@@ -26,6 +26,7 @@ pub enum KeyboardKey {
     C,
     D,
     E,
+    F,
     Total
 }
 
@@ -69,6 +70,8 @@ pub struct InternalState {
     pub previous_vsync: Instant,
     pub timer_accumulator: Duration,
     pub time_since_last_op: Duration,
+    pub halted_for_keypress: bool,
+    pub halted_keypress_store_reg: usize
 }
 
 pub const FONTS: [u8; 5 * 16] = [0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -99,7 +102,9 @@ impl InternalState {
             previous_tick: Instant::now(),
             previous_vsync: Instant::now(),
             timer_accumulator: Duration::new(0, 0),
-            time_since_last_op: Duration::new(0, 0)
+            time_since_last_op: Duration::new(0, 0),
+            halted_for_keypress: false,
+            halted_keypress_store_reg: 0
         }
     }
 

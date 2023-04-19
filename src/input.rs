@@ -1,7 +1,7 @@
 use crate::state::KeyboardKey;
 
 pub struct KeyboardState {
-    keys: [bool; KeyboardKey::Total as usize]
+    pub keys: [bool; KeyboardKey::Total as usize]
 }
 
 impl KeyboardState {
