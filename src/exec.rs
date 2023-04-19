@@ -28,7 +28,7 @@ pub enum InstructionType {
     SHR { vx: u8, vy: u8 },
     SUBN { vx: u8, vy: u8 },
     SHL { vx: u8, vy: u8 },
-    SETDT { value: u8 },
+    SETDT { vx: u8 },
     SKNP { vx: u8 },
     SKP { vx: u8 },
     SNER { vx: u8, vy: u8 },
@@ -92,7 +92,7 @@ impl InternalState {
             (0xE, vx, 0x9, 0xE) => InstructionType::SKP{ vx },
             (0xF, vx, 0x0, 0x7) => InstructionType::LDDT{ vx },
             (0xF, vx, 0x0, 0xA) => InstructionType::HALTKP { vx },
-            (0xF, value, 0x1, 0x5) => InstructionType::SETDT{ value },
+            (0xF, vx, 0x1, 0x5) => InstructionType::SETDT{ vx },
             (0xF, vx, 0x1, 0x8) => InstructionType::LDST{ vx },
             (0xF, vx, 0x1, 0xE) => InstructionType::ADDI{ vx },
             (0xF, vx, 0x2, 0x9) => InstructionType::LDHEX{ vx },
@@ -136,7 +136,7 @@ impl InternalState {
             InstructionType::SKP{ vx} => self.skp(*vx),
             InstructionType::HALTKP{ vx} => self.haltkp(*vx),
             InstructionType::LDDT{ vx} => self.lddt(*vx),
-            InstructionType::SETDT{ value } => self.set_dt(*value),
+            InstructionType::SETDT{ vx } => self.set_dt(*vx),
             InstructionType::LDST{ vx } => self.ldst(*vx),
             InstructionType::ADDI{ vx } => self.addi(*vx),
             InstructionType::LDHEX{ vx } => self.ldhex(*vx),
@@ -247,8 +247,8 @@ impl InternalState {
         self.set_register(Register::I, sum);
     }
 
-    pub fn set_dt(&mut self, value: u8) {
-        self.set_register(Register::DT, value as u16);
+    pub fn set_dt(&mut self, vx: u8) {
+        self.set_register(Register::DT, self.registers[InternalState::get_vx_i(vx) & 0xFF]);
     }
 
     /// handler_timer will decrease DT and ST by 1 at 60hz (1 for every 16 ms that
