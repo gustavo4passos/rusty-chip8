@@ -8,7 +8,6 @@ pub const MEMSIZE: usize = 0xFFF;
 pub const PROGRAM_START: usize = 0x200;
 pub const STACK_START: usize = PROGRAM_START;
 pub const STACK_SIZE: u32 = 32; // Stack can store 16 u16
-pub const CYCLE_DURATION_NS: u32 = 1000;
 
 pub enum KeyboardKey {
     Zero = 0,

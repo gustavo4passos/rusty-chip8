@@ -9,13 +9,23 @@ pub struct ShaderProgram {
 }
 
 impl ShaderProgram {
-    pub fn new (vs_file_path: String, fs_file_path: String) -> ShaderProgram {
+    pub fn from_files (vs_file_path: &str, fs_file_path: &str) -> ShaderProgram {
         ShaderProgram { 
-            vs_path: vs_file_path, 
-            fs_path: fs_file_path, 
+            vs_path: String::from(vs_file_path), 
+            fs_path: String::from(fs_file_path), 
             id: 0, 
             vs_content: String::new(), 
             fs_content: String::new()
+        }
+    }
+
+    pub fn from_text(vs_content: &str, fs_content: &str) -> ShaderProgram {
+        ShaderProgram { 
+            vs_path: String::new(), 
+            fs_path: String::new(), 
+            id: 0, 
+            vs_content: vs_content.to_string() , 
+            fs_content: fs_content.to_string() 
         }
     }
 

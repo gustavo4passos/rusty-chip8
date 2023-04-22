@@ -17,7 +17,6 @@ mod shader;
 
 use std::env;
 use crate::state::InternalState;
-// use crate::window::Window;
 
 fn main() {
     let cwd_p = env::current_dir();
@@ -48,7 +47,7 @@ fn main() {
             return;
         }
     };
-
+    
     let mut main_state: InternalState = InternalState::new();
     main_state.load_rom_to_memory(&data);
     main_state.run();

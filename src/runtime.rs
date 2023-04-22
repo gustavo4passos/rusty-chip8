@@ -4,6 +4,7 @@ use crate::input::InputBackend;
 use std::time::{Duration, Instant};
 
 
+
 impl InternalState {
     pub fn run(&mut self) {
         self.setup();
@@ -11,7 +12,7 @@ impl InternalState {
     }
 
     pub fn run_main_loop(&mut self) {
-        let mut w = Window::new(800, 600);
+        let mut w = Window::new(1200, 600);
         w.init();
 
         loop {

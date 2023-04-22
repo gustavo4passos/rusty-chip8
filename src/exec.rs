@@ -385,7 +385,7 @@ impl InternalState {
         self.set_register(Register::VF, if vy_value > vx_value { 1 } else { 0 });
     }
 
-    pub fn shl(&mut self, vx: u8, vy: u8) {
+    pub fn shl(&mut self, vx: u8, _vy: u8) {
         let vx_value = self.registers[InternalState::get_vx_i(vx)];
         let most_significant_bit = utils::get_nth_bit_u16(vx_value, 7);
         self.registers[InternalState::get_vx_i(vx)] = (vx_value << 1) & 0xFF;
@@ -393,7 +393,7 @@ impl InternalState {
     }
 
     // TODO: Sound not yet implemented
-    pub fn ldst(&mut self, vx: u8) {
+    pub fn ldst(&mut self, _vx: u8) {
     }
  
     // TODO: Input not yet implemented

@@ -1,5 +1,6 @@
 extern crate glfw;
 use gl;
+use glfw::ffi::glfwSetFramebufferSizeCallback;
 use glfw::{Action, Context, Key, WindowEvent };
 use crate::input::{InputBackend, KeyboardState};
 use crate::renderer::Renderer;
@@ -26,8 +27,10 @@ impl Window {
             .expect("Failed do create window.");
 
         window.set_key_polling(true);
+        window.set_drag_and_drop_polling(true);
+        window.set_framebuffer_size_polling(true);
         window.make_current();
-
+    
         Window {
             width,
             height,
@@ -43,6 +46,8 @@ impl Window {
         opengl::OpenGLRenderer::load_procs(|s: &str| self.glfw.get_proc_address_raw(s));
         self.opengl_renderer.init();
         self.opengl_renderer.set_clear_color(0.2, 0.2, 0.2, 1.0);
+        self.window.make_current();
+
     }
 
     pub fn run(&mut self) {
@@ -98,6 +103,14 @@ impl InputBackend for Window {
                         _ => { }
                     }
                 },
+                glfw::WindowEvent::FileDrop(path) => {
+                    for p in path {
+                        println!("p: {}", p.as_path().extension().expect("File has no extension").to_str().expect("File has no extension"));
+                    }
+                },
+                glfw::WindowEvent::FramebufferSize(width, height) => {
+                    unsafe{ gl::Viewport(0, 0, width, height); }
+                }
                 _ => { }
             }
         }

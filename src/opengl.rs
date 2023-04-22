@@ -23,14 +23,43 @@ pub struct OpenGLRenderer {
 
 impl OpenGLRenderer {
     pub fn new() -> OpenGLRenderer {
+
+        let vertex_shader = String::from("
+            #version 450 core
+            layout(location = 0) in vec2 iCoord;
+            out vec2 fScreenCoordN;
+
+            void main() {
+                gl_Position = vec4(iCoord, 0, 1.0);
+                fScreenCoordN = iCoord * 0.5 + 0.5;
+            }
+        ");
+
+        let fragment_shader = String::from("
+            #version 450 core 
+            in vec2 fScreenCoordN;
+            out vec4 oColor;
+            uniform sampler2D screenTex;
+            
+            void main() {
+                // vec3 black = vec3(0x0A / 255.0, 0x4D / 255.0, 0x68 / 255.0);
+                // vec3 white = vec3(0x00 / 255.0, 0xFF / 255.0, 0xCA / 255.0);
+                vec3 black = vec3(0x39 / 255.0, 0x36 / 255.0, 0x46 / 255.0);
+                vec3 white = vec3(0xF4 / 255.0, 0xEE / 255.0, 0xE0 / 255.0);
+                vec2 invertedCoords = vec2(fScreenCoordN.x, 1 - fScreenCoordN.y);
+                float bufferColor = texture(screenTex, invertedCoords).r;
+                
+                vec3 finalColor = (1 - bufferColor) * black + bufferColor * white;
+                oColor = vec4(vec3(finalColor), 1.0);
+            }
+        ");
+
         OpenGLRenderer {
             vbo: 0,
             vao: 0,
             screen_framebuffer: [0.5; (state::DISPLAYW * state::DISPLAYH) as usize],
-            screen_shader: ShaderProgram::new(
-                String::from("C:/dev/chip8/vs.vert"), 
-                String::from("C:/dev/chip8/fs.frag")),
-                screen_texture: Texture::new(state::DISPLAYW as i32, state::DISPLAYH as i32)
+            screen_shader: ShaderProgram::from_text(&vertex_shader, &fragment_shader),
+            screen_texture: Texture::new(state::DISPLAYW as i32, state::DISPLAYH as i32)
         }
     }
 
