@@ -1,14 +1,49 @@
-use crate::state::InternalState;
+use crate::{chip8::Chip8, utils};
 use crate::window::Window;
 use crate::input::InputBackend;
-use std::time::{Duration, Instant};
 
+pub struct Runtime {
+    chip8: Chip8,
+    current_rom_path: Option<String>,
+    rom_loaded: bool,
+    paused: bool
+}
 
+impl Runtime {
+    pub fn new(rom_path: Option<String>) -> Runtime {
+        Runtime {
+            chip8: Chip8::new(),
+            current_rom_path: rom_path,
+            rom_loaded: false,
+            paused: false
+        }
+    }
 
-impl InternalState {
     pub fn run(&mut self) {
-        self.setup();
+        self.chip8.setup();
+
+        if let Some(file_path) = &self.current_rom_path {
+            let file_path_copy = file_path.clone();
+            self.load_from_from_file(&file_path_copy);
+        }
+
         self.run_main_loop();
+    }
+
+    pub fn load_from_from_file(&mut self, file_path: &str) -> bool {
+        let data = utils::read_file_to_u8(&file_path);
+        match data {
+            Ok(data) => {
+                self.chip8.load_rom_to_memory(&data);
+                self.rom_loaded = true;
+                true
+            },
+            Err(e) => {
+                println!("Error: Unable to road rom file: {}. {}", file_path, e);
+                self.rom_loaded = false;
+                false
+            }
+        }
     }
 
     pub fn run_main_loop(&mut self) {
@@ -16,45 +51,24 @@ impl InternalState {
         w.init();
 
         loop {
+            w.process_input(&mut self.chip8.keyboard_state);
             if w.should_close() { break };
-            w.get_keyboard_state(&mut self.keyboard_state);
-            
-            const INSTRUCTION_TIME_US: u32 = 1400000;
-            while !self.halted_for_keypress && self.time_since_last_op.as_nanos() > INSTRUCTION_TIME_US.into() {
-                let next_inst = self.fetch_next();
-                let next_inst_decoded = InternalState::decode_instr(next_inst);         
-                self.advance_pc();
-                self.execute_instruction(&next_inst_decoded);
-                self.time_since_last_op -= Duration::new(0, INSTRUCTION_TIME_US);
+            if w.has_drag_and_drop() {
+                // Restart chip8 internal state
+                self.chip8 = Chip8::new();
+                self.chip8.setup();
+                // Load new rom, if possible
+                self.rom_loaded = false;
+                self.current_rom_path = Some(w.get_drag_and_drop());
+                self.load_from_from_file(&w.get_drag_and_drop());
+                w.clear_drag_and_drop();
             }
 
-            if self.halted_for_keypress {
-                self.time_since_last_op = Duration::new(0, 0);
-                for (i, status) in self.keyboard_state.keys.iter().enumerate() {
-                    if *status {
-                        self.registers[self.halted_keypress_store_reg] = i as u16;
-                        self.halted_for_keypress = false;
-                        break;
-                    }
-                }
+            if self.rom_loaded {
+                self.chip8.run_cycles();
             }
-            
-            let now = Instant::now();
-            let elapsed: Duration = now - self.previous_tick;
-            self.time_since_last_op += elapsed;
-            self.previous_tick = now;
-            
-            let t_since_last_vsync = now - self.previous_vsync;
-            if t_since_last_vsync.as_millis() > 16 {
-                // display::draw_console(&self.framebuffer);
-                self.previous_vsync = Instant::now();
-            }
-
-            self.handle_timer(&elapsed);
-            w.draw(&self.framebuffer);
+            w.draw(&self.chip8.framebuffer);
             w.update();
-
-            // log_debug!("PC: {:#x}", self.registers[Register::PC as usize] - 0x200);
         }
     }    
 }

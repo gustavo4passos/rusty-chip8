@@ -24,7 +24,7 @@ impl ShaderProgram {
             vs_path: String::new(), 
             fs_path: String::new(), 
             id: 0, 
-            vs_content: vs_content.to_string() , 
+            vs_content: vs_content.to_string(),
             fs_content: fs_content.to_string() 
         }
     }

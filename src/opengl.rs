@@ -3,7 +3,7 @@ use std::os::raw::c_void;
 use gl;
 use crate::renderer::Renderer;
 use crate::shader::{self, ShaderProgram};
-use crate::state;
+use crate::chip8;
 
 pub struct Texture {
     width: i32,
@@ -16,7 +16,7 @@ pub struct OpenGLRenderer {
     vbo: u32,
     vao: u32,
     screen_shader: shader::ShaderProgram,
-    screen_framebuffer: [f32; (state::DISPLAYW * state::DISPLAYH) as usize],
+    screen_framebuffer: [f32; (chip8::DISPLAYW * chip8::DISPLAYH) as usize],
     screen_texture: Texture
 }
 
@@ -57,9 +57,9 @@ impl OpenGLRenderer {
         OpenGLRenderer {
             vbo: 0,
             vao: 0,
-            screen_framebuffer: [0.5; (state::DISPLAYW * state::DISPLAYH) as usize],
+            screen_framebuffer: [0.5; (chip8::DISPLAYW * chip8::DISPLAYH) as usize],
             screen_shader: ShaderProgram::from_text(&vertex_shader, &fragment_shader),
-            screen_texture: Texture::new(state::DISPLAYW as i32, state::DISPLAYH as i32)
+            screen_texture: Texture::new(chip8::DISPLAYW as i32, chip8::DISPLAYH as i32)
         }
     }
 
@@ -127,7 +127,6 @@ impl Renderer for OpenGLRenderer {
     fn init(&mut self) {
         unsafe {
 
-            self.screen_shader.load_shader_files();
             self.screen_shader.load();
 
             gl::GenBuffers(1, &mut self.vbo); 

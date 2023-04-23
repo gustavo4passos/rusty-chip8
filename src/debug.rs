@@ -1,15 +1,15 @@
-use crate::state::InternalState;
-use crate::state::Register;
-use crate::state::{STACK_SIZE, STACK_START};
+use crate::chip8::Chip8;
+use crate::chip8::Register;
+use crate::chip8::{STACK_SIZE, STACK_START};
 use crate::utils;
 use crate::log_debug;
 
 
-impl InternalState {
+impl Chip8 {
     pub fn reg_dump(&self) {
         println!("### REG DUMP ###");
         for n in 0..=0xF {
-            println!("V{:#x}: {:#x}", n, self.registers[InternalState::get_vx_i(n)]);
+            println!("V{:#x}: {:#x}", n, self.registers[Chip8::get_vx_i(n)]);
         }
         println!("DT: {:#x}", self.get_register(Register::DT));
         println!("PC: {:#x}", self.get_register(Register::PC));

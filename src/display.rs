@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::state::{DISPLAYW, DISPLAYH, Color};
+use crate::chip8::{DISPLAYW, DISPLAYH, Color};
 
 pub fn draw_console(framebuffer: &[u8; (DISPLAYW * DISPLAYH) as usize]) {
     // println!("-------------------------------");

@@ -1,4 +1,4 @@
-use crate::state::KeyboardKey;
+use crate::chip8::KeyboardKey;
 
 pub struct KeyboardState {
     pub keys: [bool; KeyboardKey::Total as usize]
@@ -26,5 +26,5 @@ impl KeyboardState {
 }
 
 pub trait InputBackend {
-    fn get_keyboard_state(&mut self, keyboard_state: &mut KeyboardState);
+    fn process_input(&mut self, keyboard_state: &mut KeyboardState);
 }

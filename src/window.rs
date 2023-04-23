@@ -1,10 +1,9 @@
 extern crate glfw;
 use gl;
-use glfw::ffi::glfwSetFramebufferSizeCallback;
 use glfw::{Action, Context, Key, WindowEvent };
 use crate::input::{InputBackend, KeyboardState};
 use crate::renderer::Renderer;
-use crate::state::KeyboardKey;
+use crate::chip8::KeyboardKey;
 use std::sync::mpsc::{ Receiver };
 use crate::opengl::{self, OpenGLRenderer };
 
@@ -15,7 +14,9 @@ pub struct Window {
     glfw: glfw::Glfw,
     window: glfw::Window,
     events: Receiver<(f64, WindowEvent)>,
-    opengl_renderer: opengl::OpenGLRenderer
+    opengl_renderer: opengl::OpenGLRenderer,
+
+    drag_and_drop: Option<String>
 }
 
 impl Window {
@@ -37,7 +38,8 @@ impl Window {
             glfw,
             window,
             events,
-            opengl_renderer: OpenGLRenderer::new()
+            opengl_renderer: OpenGLRenderer::new(),
+            drag_and_drop: None
         }
     }
 
@@ -48,10 +50,6 @@ impl Window {
         self.opengl_renderer.set_clear_color(0.2, 0.2, 0.2, 1.0);
         self.window.make_current();
 
-    }
-
-    pub fn run(&mut self) {
-        
     }
 
     pub fn update(&mut self) {
@@ -74,10 +72,23 @@ impl Window {
             keyboard_state.set_key_state(key, false);
         }
     }
+
+    pub fn has_drag_and_drop(&self) -> bool {
+        self.drag_and_drop.is_some()
+    }
+
+    pub fn clear_drag_and_drop(&mut self) {
+        self.drag_and_drop = None;
+    }
+
+    pub fn get_drag_and_drop(&mut self) -> String {
+        self.drag_and_drop.clone().unwrap().clone()
+    }
+
 }
 
 impl InputBackend for Window {
-    fn get_keyboard_state(&mut self, keyboard_state: &mut KeyboardState) {
+    fn process_input(&mut self, keyboard_state: &mut KeyboardState) {
         self.glfw.poll_events();
         for (_, event) in glfw::flush_messages(&self.events) {
             match event {
@@ -105,7 +116,11 @@ impl InputBackend for Window {
                 },
                 glfw::WindowEvent::FileDrop(path) => {
                     for p in path {
-                        println!("p: {}", p.as_path().extension().expect("File has no extension").to_str().expect("File has no extension"));
+                        self.drag_and_drop = Some(
+                            String::from(
+                                p.as_path()
+                                .to_str()
+                                .unwrap()));
                     }
                 },
                 glfw::WindowEvent::FramebufferSize(width, height) => {

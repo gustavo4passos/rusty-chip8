@@ -60,7 +60,7 @@ pub enum Register {
     Total
 }
 
-pub struct InternalState {
+pub struct Chip8 {
     pub framebuffer: [u8; (DISPLAYW * DISPLAYH) as usize],
     pub main_memory: [u8; MEMSIZE as usize],
     pub registers: [u16; Register::Total as usize],
@@ -90,9 +90,9 @@ pub const FONTS: [u8; 5 * 16] = [0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
                                 0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
                                 0xF0, 0x80, 0xF0, 0x80, 0x80 ]; // F
 
-impl InternalState {
-    pub fn new() -> InternalState {
-        InternalState {
+impl Chip8 {
+    pub fn new() -> Chip8 {
+        Chip8 {
             framebuffer: [0; (DISPLAYW * DISPLAYH) as usize],
             main_memory: [0; MEMSIZE],
             registers: [0; Register::Total as usize],

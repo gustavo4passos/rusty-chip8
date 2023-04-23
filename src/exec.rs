@@ -1,10 +1,10 @@
 use std::time::{ Duration, Instant };
 
-use crate::state::{ DISPLAYH, DISPLAYW, PROGRAM_START, STACK_START };
-use crate::state::InternalState;
-use crate::state::Register;
-use crate::state::Color;
-use crate::state::FONTS;
+use crate::chip8::{ DISPLAYH, DISPLAYW, PROGRAM_START, STACK_START };
+use crate::chip8::Chip8;
+use crate::chip8::Register;
+use crate::chip8::Color;
+use crate::chip8::FONTS;
 use crate::utils;
 use crate::utils::nibbles_to_tuple;
 use rand::random;
@@ -46,7 +46,7 @@ pub enum InstructionType {
     UNKNOWN
 }
 
-impl InternalState {
+impl Chip8 {
     pub fn setup(&mut self) {
         self.registers[Register::PC as usize] = PROGRAM_START as u16;
         self.registers[Register::SP as usize] = STACK_START as u16;
@@ -54,6 +54,40 @@ impl InternalState {
         self.main_memory[0..FONTS.len()].clone_from_slice(&FONTS);
         self.previous_tick = Instant::now();
         self.previous_vsync = Instant::now();
+    }
+
+    pub fn run_cycles(&mut self) {
+        const INSTRUCTION_TIME_NS: u32 = 1400000;
+        while !self.halted_for_keypress && self.time_since_last_op.as_nanos() > INSTRUCTION_TIME_NS.into() {
+            let next_inst = self.fetch_next();
+            let next_inst_decoded = Chip8::decode_instr(next_inst);         
+            self.advance_pc();
+            self.execute_instruction(&next_inst_decoded);
+            self.time_since_last_op -= Duration::new(0, INSTRUCTION_TIME_NS);
+        }
+
+        if self.halted_for_keypress {
+            self.time_since_last_op = Duration::new(0, 0);
+            for (i, status) in self.keyboard_state.keys.iter().enumerate() {
+                if *status {
+                    self.registers[self.halted_keypress_store_reg] = i as u16;
+                    self.halted_for_keypress = false;
+                    break;
+                }
+            }
+        }
+        
+        let now = Instant::now();
+        let elapsed: Duration = now - self.previous_tick;
+        self.time_since_last_op += elapsed;
+        self.previous_tick = now;
+        
+        let t_since_last_vsync = now - self.previous_vsync;
+        if t_since_last_vsync.as_millis() > 16 {
+            self.previous_vsync = Instant::now();
+        }
+
+        self.handle_timer(&elapsed);
     }
 
     pub fn fetch_next(&self) -> u16 {
@@ -163,12 +197,12 @@ impl InternalState {
 
     pub fn ldv(&mut self, vx: u8, value: u8) {
         // log_debug!("Loading to register {}", InternalState::get_vx_i(vx));
-        self.registers[InternalState::get_vx_i(vx)] = value as u16;
+        self.registers[Chip8::get_vx_i(vx)] = value as u16;
     }
 
     pub fn addv(&mut self, vx: u8, value: u8) {
-        let sum: u16 = self.registers[InternalState::get_vx_i(vx)] + value as u16;
-        self.registers[InternalState::get_vx_i(vx)] = sum & 0xFF;
+        let sum: u16 = self.registers[Chip8::get_vx_i(vx)] + value as u16;
+        self.registers[Chip8::get_vx_i(vx)] = sum & 0xFF;
     }
 
     pub fn ldi(&mut self, value: u16) {
@@ -178,8 +212,8 @@ impl InternalState {
     pub fn drw(&mut self, vx: u8, vy: u8, bytes: u8) {
         // log_debug!("Drawing from {} to {} for {} bytes", vx, vy, bytes);
 
-        let x_coord = self.registers[InternalState::get_vx_i(vx)] % (DISPLAYW as u16);
-        let y_coord = self.registers[InternalState::get_vx_i(vy)] % (DISPLAYH as u16);
+        let x_coord = self.registers[Chip8::get_vx_i(vx)] % (DISPLAYW as u16);
+        let y_coord = self.registers[Chip8::get_vx_i(vy)] % (DISPLAYH as u16);
 
         // Set VF initially to 0. If any pixel drawn clears a pixel that was previously
         // white, VF will be set to 1.
@@ -194,7 +228,7 @@ impl InternalState {
             for j in 0..8 {
                 let circ_x_coord = (x_coord + j as u16) % DISPLAYW as u16;
 
-                let fb_index = InternalState::get_fb_i_from_coord_in_fb(circ_x_coord, circ_y_coord);
+                let fb_index = Chip8::get_fb_i_from_coord_in_fb(circ_x_coord, circ_y_coord);
                 let color = match utils::get_nth_bit_u16(data as u16, (7 - j) as u8) {
                     0x0 => Color::Black as u8,
                     0x1 => Color::White as u8,
@@ -221,14 +255,14 @@ impl InternalState {
     }
 
     pub fn skpeqv(&mut self, vx: u8, value: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)];
+        let vx_value = self.registers[Chip8::get_vx_i(vx)];
         if value == (vx_value as u8) {
             self.advance_pc();
         }
     }
 
     pub fn skpneqv(&mut self, vx: u8, value: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)];
+        let vx_value = self.registers[Chip8::get_vx_i(vx)];
         if value != (vx_value as u8) {
             self.advance_pc();
         }
@@ -237,18 +271,18 @@ impl InternalState {
     pub fn rnd(&mut self, vx: u8, value: u8) {
         let rndm: u8 = random();
         let rndm = rndm & value;
-        self.registers[InternalState::get_vx_i(vx)] = rndm as u16;
+        self.registers[Chip8::get_vx_i(vx)] = rndm as u16;
     }
 
     pub fn addi(&mut self, vx: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)] as u8;
+        let vx_value = self.registers[Chip8::get_vx_i(vx)] as u8;
         let vi_value = self.get_register(Register::I);
         let sum = vx_value as u16 + vi_value;
         self.set_register(Register::I, sum);
     }
 
     pub fn set_dt(&mut self, vx: u8) {
-        self.set_register(Register::DT, self.registers[InternalState::get_vx_i(vx) & 0xFF]);
+        self.set_register(Register::DT, self.registers[Chip8::get_vx_i(vx) & 0xFF]);
     }
 
     /// handler_timer will decrease DT and ST by 1 at 60hz (1 for every 16 ms that
@@ -279,15 +313,15 @@ impl InternalState {
 
     pub fn haltkp(&mut self, vx: u8) {
         self.halted_for_keypress = true;
-        self.halted_keypress_store_reg = InternalState::get_vx_i(vx);
+        self.halted_keypress_store_reg = Chip8::get_vx_i(vx);
     }
 
     pub fn lddt(&mut self, vx: u8) {
-        self.registers[InternalState::get_vx_i(vx)] = self.get_register(Register::DT) & 0xFF;
+        self.registers[Chip8::get_vx_i(vx)] = self.get_register(Register::DT) & 0xFF;
     }
 
     pub fn ldbcd(&mut self, vx: u8) {
-        let value = self.registers[InternalState::get_vx_i(vx)] as u8;
+        let value = self.registers[Chip8::get_vx_i(vx)] as u8;
         let hundreds = value / 100;
         let value = value - (hundreds * 100);
         let tens = value / 10;
@@ -302,59 +336,59 @@ impl InternalState {
     pub fn ldri(&mut self, vx: u8) {
         let i_value = self.get_register(Register::I);
         for offset in 0..=vx {
-            self.registers[InternalState::get_vx_i(offset)] = self.main_memory[(i_value as usize) + (offset as usize)] as u16;
+            self.registers[Chip8::get_vx_i(offset)] = self.main_memory[(i_value as usize) + (offset as usize)] as u16;
         }
     }
 
     pub fn ldr(&mut self, vx: u8, vy: u8) {
-        self.registers[InternalState::get_vx_i(vx)] = self.registers[InternalState::get_vx_i(vy)];
+        self.registers[Chip8::get_vx_i(vx)] = self.registers[Chip8::get_vx_i(vy)];
     }
 
     pub fn ser(&mut self, vx: u8, vy: u8) {
-        if self.registers[InternalState::get_vx_i(vx)] == self.registers[InternalState::get_vx_i(vy)] {
+        if self.registers[Chip8::get_vx_i(vx)] == self.registers[Chip8::get_vx_i(vy)] {
             self.advance_pc();
         }
     }
 
     pub fn sner(&mut self, vx: u8, vy: u8) {
-        if self.registers[InternalState::get_vx_i(vx)] != self.registers[InternalState::get_vx_i(vy)] {
+        if self.registers[Chip8::get_vx_i(vx)] != self.registers[Chip8::get_vx_i(vy)] {
             self.advance_pc();
         }
     }
 
     pub fn ldhex(&mut self, vx: u8) {
-        let vx_value: u16 = self.registers[InternalState::get_vx_i(vx)];
+        let vx_value: u16 = self.registers[Chip8::get_vx_i(vx)];
         let sprite_location: u16 = vx_value * 5;
         self.set_register(Register::I, sprite_location);
     }
 
     pub fn or(&mut self, vx: u8, vy: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)];
-        let vy_value = self.registers[InternalState::get_vx_i(vy)];
+        let vx_value = self.registers[Chip8::get_vx_i(vx)];
+        let vy_value = self.registers[Chip8::get_vx_i(vy)];
         let result = (vx_value | vy_value) & 0xFF;
-        self.registers[InternalState::get_vx_i(vx)] = result & 0xFF;
+        self.registers[Chip8::get_vx_i(vx)] = result & 0xFF;
     }
 
     pub fn and(&mut self, vx: u8, vy: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)];
-        let vy_value = self.registers[InternalState::get_vx_i(vy)];
+        let vx_value = self.registers[Chip8::get_vx_i(vx)];
+        let vy_value = self.registers[Chip8::get_vx_i(vy)];
         let result = (vx_value & vy_value) & 0xFF;
-        self.registers[InternalState::get_vx_i(vx)] = result & 0xFF;
+        self.registers[Chip8::get_vx_i(vx)] = result & 0xFF;
     }
 
     pub fn xor(&mut self, vx: u8, vy: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)];
-        let vy_value = self.registers[InternalState::get_vx_i(vy)];
-        self.registers[InternalState::get_vx_i(vx)] = (vx_value ^ vy_value) & 0xFF;
+        let vx_value = self.registers[Chip8::get_vx_i(vx)];
+        let vy_value = self.registers[Chip8::get_vx_i(vy)];
+        self.registers[Chip8::get_vx_i(vx)] = (vx_value ^ vy_value) & 0xFF;
     }
 
     pub fn add(&mut self, vx: u8, vy: u8) {
-        let x_value = self.registers[InternalState::get_vx_i(vx)];
-        let y_value = self.registers[InternalState::get_vx_i(vy)];
+        let x_value = self.registers[Chip8::get_vx_i(vx)];
+        let y_value = self.registers[Chip8::get_vx_i(vy)];
         let result = x_value + y_value;
         
         // Cast removes any 1's after the eight bit
-        self.registers[InternalState::get_vx_i(vx)] = result as u8 as u16;
+        self.registers[Chip8::get_vx_i(vx)] = result as u8 as u16;
         // Check if carry bit should be on 
         self.set_register(Register::VF, if result > 0xFF { 1 } else { 0 });
 
@@ -362,33 +396,33 @@ impl InternalState {
 
     pub fn sub(&mut self, vx: u8, vy: u8) {
         // TODO: Check the behavior of casting an i8 to u8 when the value is negative
-        let vx_value = self.registers[InternalState::get_vx_i(vx)] as i16;
-        let vy_value = self.registers[InternalState::get_vx_i(vy)] as i16;
+        let vx_value = self.registers[Chip8::get_vx_i(vx)] as i16;
+        let vy_value = self.registers[Chip8::get_vx_i(vy)] as i16;
 
         let result = (vx_value - vy_value) as u8;
-        self.registers[InternalState::get_vx_i(vx)] = result as u16;
+        self.registers[Chip8::get_vx_i(vx)] = result as u16;
         self.set_register(Register::VF, if vx_value > vy_value { 1 } else { 0 });
     }
 
     pub fn shr(&mut self, vx: u8, _vy: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)];
+        let vx_value = self.registers[Chip8::get_vx_i(vx)];
         let lest_significant_bit = utils::get_nth_bit_u16(vx_value, 0);
-        self.registers[InternalState::get_vx_i(vx)] = (vx_value >> 1) & 0xFF;
+        self.registers[Chip8::get_vx_i(vx)] = (vx_value >> 1) & 0xFF;
         self.set_register(Register::VF, if lest_significant_bit == 1 { 1 } else { 0 });
     }
 
     pub fn subn(&mut self, vx: u8, vy: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)] as u8 as i16;
-        let vy_value = self.registers[InternalState::get_vx_i(vy)] as u8 as i16;
+        let vx_value = self.registers[Chip8::get_vx_i(vx)] as u8 as i16;
+        let vy_value = self.registers[Chip8::get_vx_i(vy)] as u8 as i16;
         let result = vy_value - vx_value;
-        self.registers[InternalState::get_vx_i(vx)] = (result & 0xFF) as u16;
+        self.registers[Chip8::get_vx_i(vx)] = (result & 0xFF) as u16;
         self.set_register(Register::VF, if vy_value > vx_value { 1 } else { 0 });
     }
 
     pub fn shl(&mut self, vx: u8, _vy: u8) {
-        let vx_value = self.registers[InternalState::get_vx_i(vx)];
+        let vx_value = self.registers[Chip8::get_vx_i(vx)];
         let most_significant_bit = utils::get_nth_bit_u16(vx_value, 7);
-        self.registers[InternalState::get_vx_i(vx)] = (vx_value << 1) & 0xFF;
+        self.registers[Chip8::get_vx_i(vx)] = (vx_value << 1) & 0xFF;
         self.set_register(Register::VF, if most_significant_bit == 1 { 1 } else { 0 });
     }
 
@@ -398,14 +432,14 @@ impl InternalState {
  
     // TODO: Input not yet implemented
     pub fn sknp(&mut self, vx: u8) {
-        let key = self.registers[InternalState::get_vx_i(vx)];
+        let key = self.registers[Chip8::get_vx_i(vx)];
         if !self.keyboard_state.get_key_state_u8(key as u8) {
             self.advance_pc();
         }
     }
     
     pub fn skp(&mut self, vx: u8) {
-        let key = self.registers[InternalState::get_vx_i(vx)];
+        let key = self.registers[Chip8::get_vx_i(vx)];
         if self.keyboard_state.get_key_state_u8(key as u8) {
             self.advance_pc();
         }
@@ -414,7 +448,7 @@ impl InternalState {
     pub fn ldvxi(&mut self, vx: u8) {
         let i_value = self.get_register(Register::I);
         for i in 0..(vx + 1) {
-            let vx_value = self.registers[InternalState::get_vx_i(i as u8)] as u8;
+            let vx_value = self.registers[Chip8::get_vx_i(i as u8)] as u8;
             self.main_memory[(i_value + i as u16) as usize] = vx_value; 
         }
         self.set_register(Register::I, (i_value + vx as u16 + 1).into());
