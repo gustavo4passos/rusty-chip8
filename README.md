@@ -1,6 +1,6 @@
 # RUSTY-CHIP8
 ## ABOUT 
-Rust-Chip-8 is a Chip-8 emulator written in Rust. It can run commercial games and passes all the tests in the [Chip-8 Test Suite](https://github.com/Timendus/chip8-test-suite).  
+Rusty-Chip8 is a Chip-8 emulator written in Rust. It can run commercial games and passes all the tests in the [Chip-8 Test Suite](https://github.com/Timendus/chip8-test-suite).  
 Graphics are rendered to the screen using [OpenGL](https://www.opengl.org/), while [GLFW](https://www.glfw.org/) is used for handling user input and window management.
 
 ## USAGE
